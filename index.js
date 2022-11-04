@@ -4,10 +4,10 @@ require('dotenv').config();
 
 const BITQUERY_ENDPOINT = 'https://graphql.bitquery.io/'
 const bitqueryApiKey = process.env.BITQUERY_API_KEY
-const dexRouterAddress = process.env.DEX_ROUTER_ADDRESS
-const wrappedCoinAddress = process.env.WRAPPED_COIN_ADDRESS
-const blockCount = 10
 const network = process.env.DEX_NETWORK
+const dexRouterAddress = network === 'ethereum' ? process.env.UNISWAP_ROUTER_V2_ADDRESS : process.env.PANCAKESWAP_ROUTER_V2_ADDRESS
+const wrappedCoinAddress = network === 'ethereum' ? process.env.WETH_ADDRESS : process.env.WBNB_ADDRESS
+const blockCount = 100
 
 const graphQLClient = new GraphQLClient(BITQUERY_ENDPOINT, {
     headers: {
@@ -19,15 +19,15 @@ const getLatestBlock = async () => {
     console.log('\n<<<<<<<<<<<<------- Getting latest block ------->>>>>>>>>>>>')
 
     const query = gql`
-        query{
-            ethereum{
-                blocks{
+        query ($network: EthereumNetwork!) {
+            ethereum(network: $network) {
+                blocks {
                     count
                 }
             }
         }
     `
-    const data = await graphQLClient.request(query)
+    const data = await graphQLClient.request(query, { network })
     const blockNumber = data.ethereum.blocks[0].count
     console.log('last block: ', blockNumber)
     return blockNumber;
@@ -272,6 +272,8 @@ const main = async () => {
         }
     });
 
-    fs.writeFileSync('./transactions.json', JSON.stringify(result, undefined, 2));
+    result.sort((a, b) => a.block - b.block)
+
+    fs.writeFileSync(`./${network}.json`, JSON.stringify(result, undefined, 2));
 }
 main().catch((error) => console.error(error))
